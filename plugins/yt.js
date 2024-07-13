@@ -1,4 +1,3 @@
-const config = require("../config");
 const {
   izumi,
   mode,
@@ -15,66 +14,23 @@ izumi(
   {
     pattern: "yta ?(.*)",
     fromMe: mode,
-    desc: "Download audio from YouTube",
-    type: "downloader",
+    desc: "Download audio from youtube",
+     type: "downloader",
   },
   async (message, match) => {
     match = match || message.reply_message.text;
-    if (!match) return await message.reply("Give me a YouTube link");
-    if (!isUrl(match)) return await message.reply("Give me a YouTube link");
-
-    let link = await parsedUrl(match);
-    let { dlink, title, vid } = await yta(link[0]);
+    if (!match) return await message.reply("Give me a youtube link");
+    if (!isUrl(match)) return await message.reply("Give me a youtube link");
+let link = await parsedUrl(match)
+    let { dlink, title } = await yta(link[0]);
     await message.reply(`_Downloading ${title}_`);
     let buff = await getBuffer(dlink);
-
-    let thumbnailUrl = `https://i.ytimg.com/vi/${vid}/0.jpg`;
-
-    let eypz = {
-      key: {
-        participant: "0@s.whatsapp.net",
-        remoteJid: "120363280001854361@g.us"
-      },
-      message: {
-        productMessage: {
-          product: {
-            productImage: {
-              mimetype: "image/jpeg",
-              jpegThumbnail: Buffer.alloc(0)
-            },
-            title: `${title}`, 
-            description: config.BOT_NAME, 
-            currencyCode: "USD",
-            priceAmount1000: "100000000//000", 
-            retailerId: config.OWNER_NAME,
-            productImageCount: 1
-          },
-          businessOwnerJid: "917994489493@s.whatsapp.net"
-        }
-      }
-    };
-
     return await message.sendMessage(
       message.jid,
       buff,
       {
         mimetype: "audio/mpeg",
-        waveform: [90, 20, 90, 20, 90, 20, 90],
-        fileLength: "1000000",
-        ptt: false,
-        quoted: eypz,
-        contextInfo: {
-          externalAdReply: {
-            title: config.BOT_NAME,
-            body: title,
-            sourceUrl: "https://github.com/sataniceypz/Izumi-v3",
-            mediaUrl: "https://github.com/sataniceypz/Izumi-v3",
-            mediaType: 1,
-            showAdAttribution: true,
-            renderLargerThumbnail: true,
-            thumbnailUrl: thumbnailUrl
-          }
-        }
+        filename: title + ".mp3",
       },
       "audio"
     );
@@ -130,3 +86,88 @@ izumi(
     );
   }
 );
+
+izumi(
+  {
+    pattern: "video ?(.*)",
+    fromMe: mode,
+    desc: "Download video from youtube",
+     type: "downloader",
+  },
+  async (message, match) => {
+    match = match || message.reply_message.text;
+    if (!match) return await message.reply("Give me a query");
+    let { dlink, title } = await ytsdl(match, "video");
+    await message.reply(`_Downloading ${title}_`);
+    return await message.sendMessage(
+      message.jid,
+      dlink,
+      {
+        mimetype: "video/mp4",
+        filename: title + ".mp4",
+      },
+      "video"
+    );
+  }
+);
+izumi({
+  pattern: "play ?(.*)",
+  fromMe: true,
+  desc: "Play YouTube video or audio",
+  type: "user",
+}, async (message, match) => {
+  match = match || message.reply_message.text;
+  if (!match) {
+    await message.reply("🎵 *Give me a query to search* 🎵");
+    return;
+  }
+
+  try {
+    let { dlink, title, vid } = await ytsdl(match);
+    let buff = await getBuffer(dlink);
+
+    let data = {
+      jid: message.jid,
+      button: [
+        {
+          type: "reply",
+          params: {
+            display_text: "📹 VIDEO",
+            id: `${PREFIX}video${match}`,
+          },
+        },
+        {
+          type: "reply",
+          params: {
+            display_text: "🎵 AUDIO",
+            id: `${PREFIX}song${match}`,
+          },
+        },
+        {
+          type: "url",
+          params: {
+            display_text: "🔗 YouTube",
+            url: `https://youtu.be/${vid}`,
+            merchant_url: `https://youtu.be/${vid}`,
+          },
+        },
+      ],
+      header: {
+        title: `${config.BOT_NAME}`,
+        subtitle: "Enjoy your media",
+        hasMediaAttachment: false,
+      },
+      footer: {
+        text: `Powered by ${config.OWNER_NAME}`,
+      },
+      body: {
+        text: `*${title}*\nChoose an option below to proceed:`,
+      },
+    };
+
+    await message.sendMessage(message.jid, data, {}, "interactive");
+  } catch (error) {
+    console.error("Error handling:", error);
+    await message.reply(" _Error processing your request. Please try again later._ ");
+  }
+});
